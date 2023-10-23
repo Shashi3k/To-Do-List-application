@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import TaskList from "./TaskList";
 
 const App = () =>{
@@ -9,27 +9,59 @@ const App = () =>{
 
   const [newTaskText, setNewTaskText] = useState('');
 
-  const handleTaskAction = (taskId, actionType) =>{
-    if (actionType === 'add'){
+  useEffect(() => {
+    // Fetch tasks from the PHP API when the component mounts
+    fetch('http://localhost/api.php')
+      .then((response) => response.json())
+      .then((data) => setTasks(data))
+      .catch((error) => console.error('Error:', error));
+  }, []);
 
-      if (newTaskText.trim() !== ""){
-        const newTask ={
-          id:tasks.length+1,
-          text: newTaskText
-        };
-      setTasks([...tasks, newTask]);
-      setNewTaskText('')
-    }
-  }
-    else if(actionType === 'delete'){
-      setTasks(tasks.filter((task)=> task.id !== taskId));
+  const handleAddTask = () => {
+    if (newTaskText.trim() !== '') {
+      // Send a POST request to add a new task
+      fetch('http://localhost/api.php', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ text: newTaskText }),
+      })
+        .then((response) => response.json())
+        .then((data) => {
+          // Update the tasks in the state with the newly added task
+          setTasks([...tasks, data]);
+          setNewTaskText(''); // Clear the input field after adding the task
+        })
+        .catch((error) => console.error('Error:', error));
     }
   };
+
+  const handleDeleteTask = (taskId) => {
+    // Send a DELETE request to delete the task with the given ID
+    fetch(`http://localhost/api.php?id=${taskId}`, {
+        method: 'DELETE',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+        .then((response) => {
+            if (response.ok) {
+                // If the delete request is successful, update the tasks in the state
+                setTasks(tasks.filter((task) => task.id !== taskId));
+            } else {
+                // If there was an error, handle it accordingly
+                console.error('Error deleting task:', response.statusText);
+            }
+        })
+        .catch((error) => console.error('Error:', error));
+};
+
 
   return (
     <div className="App">
       <h1>To-Do List</h1>
-      <TaskList tasks={tasks} onDelete={(taskId) => handleTaskAction(taskId, 'delete')} />
+      <TaskList tasks={tasks} onDelete={(taskId) => handleDeleteTask(taskId)} />
       <div className="task-form">
         <input 
           type="text"
@@ -37,7 +69,7 @@ const App = () =>{
           value={newTaskText}
           onChange={(e)=>setNewTaskText(e.target.value)}
         />
-      <button onClick={() => handleTaskAction(null, 'add')}>Add Task</button>  
+      <button onClick={() => handleAddTask}>Add Task</button>  
     </div>
     </div>
   );
